@@ -1,8 +1,8 @@
-# Chat App
+# Board Recommendation App
 
-This is a real-time chat application built using the PERN stack (PostgreSQL, Express.js, React.js, Node.js) and Material-UI (MUI). The application includes user authentication via JWT, user profile management, and instant messaging capabilities using Socket.io.
+<!-- This is a real-time chat application built using the PERN stack (PostgreSQL, Express.js, React.js, Node.js) and Material-UI (MUI). The application includes user authentication via JWT, user profile management, and instant messaging capabilities using Socket.io. -->
 
-[Live Demo](https://brad50916.github.io/chatweb/#/)
+<!-- [Live Demo](https://brad50916.github.io/chatweb/#/) -->
 
 ## Features
 
@@ -81,7 +81,7 @@ This is a real-time chat application built using the PERN stack (PostgreSQL, Exp
       pnpm dev
       ```
 
-## Usage
+<!-- ## Usage
 
 1. **Sign Up**: Create a new account.
 2. **Sign In**: Log in with your credentials.
@@ -89,7 +89,7 @@ This is a real-time chat application built using the PERN stack (PostgreSQL, Exp
 4. **Chat**: Start a real-time chat with other users.
 5. **View Profiles**: Check out other users' profiles.
 6. **Edit Profile**: Modify your own profile information.
-7. **Sign Out**: Log out from your account.
+7. **Sign Out**: Log out from your account. -->
 
 ## Project Structure
 
