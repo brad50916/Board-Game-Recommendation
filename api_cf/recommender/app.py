@@ -1,16 +1,21 @@
 # recommender_service/app.py
 from flask import Flask, request, jsonify
 import numpy as np
+import pandas as pd
 import pickle
 from fold_in import compute_user_profile, recommend_top_n
 import os
 app = Flask(__name__)
 
 # Load the model data once when the service starts
-with open("/Users/xiaotianhong/TAMU/2025spring/INF/project/recommend/api_cf/model_data/item_factors.pkl", "rb") as f:
+with open("../model_data/item_factors.pkl", "rb") as f:
     model_data = pickle.load(f)
 
-
+from content_based import content_based_recommender
+# Load content-based model data
+df_themes      = pd.read_pickle("../model_data/themes.pkl")
+df_transform   = pd.read_pickle("../model_data/category_transform.pkl")
+df_games       = pd.read_pickle("../model_data/games.pkl")
 
 # Load model parameters and metadata
 item_factors = model_data["item_factors"]      # shape: (num_items, n_factors)
@@ -21,6 +26,38 @@ item_index_map = model_data["item_index_map"]    # mapping from raw item_id to i
 reg_coeff = model_data["reg_coeff"]              # regularization coefficient
 n_factors = item_factors.shape[1]                # number of latent factors
 
+# Build inverse map once: raw-id -> CF row‑index (robust join key)
+rawid_to_cfidx = {raw_id: idx for idx, raw_id in enumerate(item_ids_list)}
+
+checkbox_cols  = df_transform.columns[1:]          # order expected from UI
+NUM_CHECKBOXES = len(checkbox_cols)
+N_ITEMS        = len(item_ids_list)                # sanity check
+
+# ------------------------------------------------------------------
+# Utility functions
+# ------------------------------------------------------------------
+def normalise(arr: np.ndarray) -> np.ndarray:
+    """Min‑max normalise to 0‑1 (no div‑by‑zero if all identical)."""
+    amin, amax = arr.min(), arr.max()
+    return (arr - amin) / (amax - amin) if amax > amin else np.zeros_like(arr)
+
+def dynamic_alpha(num_ratings: int,
+                  low: float = 0.3,
+                  high: float = 0.8,
+                  pivot: int = 10) -> float:
+    """
+    Less data -> rely more on CB; more data -> rely on CF.
+    • ≤0 ratings  → α = low
+    • ≥pivot      → α = high
+    • linear in‑between
+    """
+    if num_ratings >= pivot:
+        return high
+    return low + (high - low) * (num_ratings / pivot)
+
+# ------------------------------------------------------------------
+# Flask service
+# ------------------------------------------------------------------
 @app.route('/recommend', methods=['POST'])
 def recommend():
     """
@@ -28,25 +65,66 @@ def recommend():
     {
         "username": "user123",
         "ratings": [(item_id, rating), ...]  // all ratings from the user (historical + new)
+        "preferences": [true, false, false, true, ...]    // length = num_checkboxes
     }
     """
     data = request.get_json()
     # Get the ratings list (each element is a (item_id, rating) tuple).
     ratings = data.get("ratings", [])
+    pref_booleans  = data.get("preferences", [False] * NUM_CHECKBOXES)
+    if len(pref_booleans) != NUM_CHECKBOXES:
+        return jsonify({"error": f"'preferences' must have {NUM_CHECKBOXES} booleans"}), 400
+    
     # Derive the set of rated item IDs from the ratings list.
     rated_item_ids = {item_id for (item_id, rating) in ratings}
 
+     # ----------- 1.  CF score vector -----------
     # Compute the temporary user profile using new ratings.
     b_u, u = compute_user_profile(ratings, item_index_map, item_factors,
                                   item_biases, global_mean, reg_coeff, n_factors)
 
     # Generate top-N recommendations for the user.
-    top_recs = recommend_top_n(b_u, u, rated_item_ids, item_factors,
-                               item_biases, global_mean, item_ids_list, N=20)
+    cf_scores = global_mean + b_u + item_biases + item_factors.dot(u)  # (N_ITEMS,)
 
+    # ----------- 2.  CB score vector -----------
+    cb_raw = content_based_recommender(pref_booleans, top_n=None) # get all scores
+    cb_scores = np.zeros(N_ITEMS, dtype=np.float64)
+
+    for row_idx, (sim, _avg) in cb_raw:
+        # Map df_themes row index -> raw BGGId -> CF row index
+        raw_id = df_games.iloc[row_idx]["BGGId"]      # adapt column name if needed
+        cf_idx = rawid_to_cfidx.get(raw_id)
+        if cf_idx is not None:
+            cb_scores[cf_idx] = sim
+    
+    # ----------- 3.  Blend -----------
+    cf_norm = normalise(cf_scores)
+    cb_norm = normalise(cb_scores)
+
+    alpha   = dynamic_alpha(len(ratings))
+    hybrid  = alpha * cf_norm + (1 - alpha) * cb_norm
+
+    # Exclude rated items!!
+    for raw_id in rated_item_ids:
+        idx = rawid_to_cfidx.get(raw_id)
+        if idx is not None:
+            hybrid[idx] = -np.inf
+
+    # ----------- 4.  Top‑N -----------
+    N = int(data.get("top_n", 20))
+    top_idx = np.argpartition(hybrid, -N)[-N:]
+    top_idx = top_idx[np.argsort(hybrid[top_idx])[::-1]]
+
+    recommendations = [
+        (int(item_ids_list[i]), float(hybrid[i])) for i in top_idx
+    ]
+
+
+    # ----------- 5.  Response -----------
     response = {
         "username": data.get("username", "unknown"),
-        "recommendations": top_recs  # list of (item_id, predicted_rating) tuples
+        "cf_coffcicient": alpha,
+        "recommendations": recommendations  # list of (item_id, predicted_rating) tuples
     }
     return jsonify(response)
 
