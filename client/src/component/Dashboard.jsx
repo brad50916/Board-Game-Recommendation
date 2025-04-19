@@ -92,6 +92,7 @@ export default function Dashboard() {
 
   const [selectedGame, setSelectedGame] = useState(null);
 
+  
   const handleGameClick = (gameId) => {
     setSelectedGame(gameId);
     handleClickGameInfo();
@@ -104,7 +105,8 @@ export default function Dashboard() {
         try {
           const result = await verifyToken(token);
           if (result) {
-            setUserId(result);
+            const user = JSON.parse(localStorage.getItem("user"));
+            setUserId(user.id);
           } else {
             navigate("/");
           }
@@ -122,7 +124,8 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchGameId = async () => {
       try {
-        const result = await getGameId(userId);
+
+        const result = await getGameId(JSON.parse(localStorage.getItem("user")).id);
         if (result) {
           setGameId(result);
         } 
@@ -131,7 +134,7 @@ export default function Dashboard() {
       }
     };
     fetchGameId();
-  }, []);
+  }, [openGameInfo]);
 
 
   const handleClickSearch = () => {

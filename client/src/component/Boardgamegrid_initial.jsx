@@ -1,5 +1,5 @@
 import { Card, CardMedia, Typography, Grid, Box, Rating, Button } from '@mui/material';
-import { getGameInfo, getGameId, setUserGameRating } from "./Api.jsx";
+import { getGameInfo, getGameIdFromPreference, setUserGameRating } from "./Api.jsx";
 import { useEffect, useState } from 'react';
 import { useNavigate } from "react-router-dom";
 const BoardGameGrid = () => {
@@ -12,7 +12,7 @@ const BoardGameGrid = () => {
   useEffect(() => {
     const fetchGameId = async () => {
       try {
-        const result = await getGameId(userId);
+        const result = await getGameIdFromPreference(userId);
         if (result) {
           setGameId(result);
         } 

@@ -53,7 +53,7 @@ const GamePreferencePage = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      await setGamePreference(userId, preferences);
+      await setGamePreference(JSON.parse(localStorage.getItem("user")).id, preferences);
     }
     catch (error) {
       console.error("Error setting game preferences:", error);

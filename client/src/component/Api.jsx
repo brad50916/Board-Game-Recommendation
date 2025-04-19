@@ -3,13 +3,19 @@ export const API_URL = import.meta.env.VITE_API_URL;
 
 export const setGamePreference = async (userId, preferences) => {
   try {
-    await fetch(`${API_URL}/setGamePreference`, {
+    const response = await fetch(`${API_URL}/setGamePreference`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ userId, preferences }),
     });
+    if (response.ok) {
+      const data = await response.json();
+      return data;
+    } else {
+      return null;
+    }
   } catch (error) {
     throw error;
   }
@@ -17,11 +23,7 @@ export const setGamePreference = async (userId, preferences) => {
 
 export const haveGamePreference = async (userId) => {
   try {
-    const response = await fetch(`${API_URL}/haveGamePreference?userId=${userId}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data['preference'];
-    }
+    await fetch(`${API_URL}/haveGamePreference?userId=${userId}`);
   } catch (error) {
     throw error;
   }
@@ -44,6 +46,7 @@ export const getUserGameRating = async (userId, gameId) => {
 
 export const setUserGameRating = async (userId, gameId, rating) => {
   try {
+    console.log(userId, gameId, rating);
     const response = await fetch(`${API_URL}/setUserGameRating`, {
       method: "POST",
       headers: {
@@ -91,8 +94,24 @@ export const getGameInfo = async (gameId) => {
   }
 };
 
+export const getGameIdFromPreference = async (userId) => {
+  try {
+    console.log(userId);
+    const response = await fetch(`${API_URL}/getGameIdFromPreference?userId=${userId}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const getGameId = async (userId) => {
   try {
+    console.log(userId);
     const response = await fetch(`${API_URL}/getGameId?userId=${userId}`);
     if (response.ok) {
       const data = await response.json();
