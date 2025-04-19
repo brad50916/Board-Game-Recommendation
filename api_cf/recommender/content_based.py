@@ -14,9 +14,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 def content_based_recommender(user_input, top_n=20):
 
   # # read data from database
-  df_themes = pd.read_pickle("/Users/xiaotianhong/TAMU/2025spring/INF/project/recommend/api_cf/model_data/themes.pkl")
-  df_games = pd.read_pickle("/Users/xiaotianhong/TAMU/2025spring/INF/project/recommend/api_cf/model_data/games.pkl")
-  df_transform = pd.read_pickle("/Users/xiaotianhong/TAMU/2025spring/INF/project/recommend/api_cf/model_data/category_transform.pkl")
+  df_themes = pd.read_pickle("../model_data/themes.pkl")
+  df_games = pd.read_pickle("../model_data/games.pkl")
+  df_transform = pd.read_pickle("../model_data/category_transform.pkl")
 
   cols_sum = df_themes.sum(axis=0, numeric_only=True)
   drop_cols = cols_sum[cols_sum <= 20].index
