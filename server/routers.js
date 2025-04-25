@@ -8,6 +8,7 @@ const saltRounds = 10;
 const multer = require('.pnpm/multer@1.4.5-lts.1/node_modules/multer');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -133,7 +134,10 @@ router.get('/getUserGameRating', async (req, res) => {
 router.post('/setUserGameRating', async (req, res) => {
     const { userId, gameId, rating } = req.body;
     try {
-        const results = await pool.query('INSERT INTO user_ratings (user_id, game_id, rating) VALUES ($1, $2, $3) RETURNING *', [userId, gameId, rating]);
+        const results = await pool.query(
+            'INSERT INTO user_ratings (user_id, game_id, rating) VALUES ($1, $2, $3) RETURNING *',
+            [userId, gameId, rating]
+        );
         res.status(200).json(results.rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.toString() });
@@ -153,26 +157,80 @@ router.get('/searchGame', async (req, res) => {
     }
 });
 
-router.post('/setGamePreference', async (req, res) => {
-    const { userId, preferences } = req.body;
-    try {
-        console.log(userId, preferences);
-        res.status(200).json();
-    } catch (error) {
-        res.status(500).json({ error: error.toString() });
-    }
-});
+
 
 router.get('/getGameId', async (req, res) => {
     const userId = req.query.userId;
+    console.log(userId);
+    const rating_pair = [];
+    try {
+        const results1 = await pool.query('SELECT * FROM user_ratings WHERE user_id = $1', [userId]);
+        if (results1.rows.length) {
+            for (let i = 0; i < results1.rows.length; i++) {
+                const gameId = results1.rows[i].game_id;
+                const rating = results1.rows[i].rating;
+                rating_pair.push([gameId, rating]);
+            }
+        }
+        console.log(rating_pair);
+        const results2 = await pool.query('SELECT preference_list1 FROM users WHERE id = $1', [userId]);
+        const booleanPreferences = results2.rows[0]['preference_list1'];
+        // console.log(booleanPreferences);
+        // Send data to Flask microservice
+        const flaskResponse = await axios.post('http://127.0.0.1:5000/recommend', {
+            username: userId,
+            ratings: rating_pair,
+            preferences: booleanPreferences
+        });
+        console.log(flaskResponse.data.recommendations);
+        const firstColumn = flaskResponse.data.recommendations.map(item => item[0]);
+        
+        res.status(200).json(firstColumn);
+    } catch (error) {
+        console.error('Error connecting to Flask microservice:', error.message);
+        res.status(500).json({ error: 'Failed to connect to Flask microservice' });
+    }
+});
 
-    res.status(200).json([1, 2, 3, 4, 5, 6, 7, 8]);
-    // try {
-    //     const results = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-    //     res.status(200).json(results.rows[0]['gameid']);
-    // } catch (error) {
-    //     res.status(500).json({ error: error.toString() });
-    // }
+router.get('/getGameIdFromPreference', async (req, res) => {
+    const userId = req.query.userId;
+
+    // res.status(200).json([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+    try {
+        const results = await pool.query('SELECT preference_list FROM users WHERE id = $1', [userId]);
+        // console.log(results.rows[0]['preference_list']);
+        res.status(200).json(results.rows[0]['preference_list']);
+    } catch (error) {
+        res.status(500).json({ error: error.toString()});
+    }
+});
+
+
+router.post('/setGamePreference', async (req, res) => {
+    // const userId = req.query.userId;
+
+    // res.status(200).json([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+    const { userId, preferences } = req.body;
+
+    const booleanPreferences = Object.values(preferences);
+    try {
+        // Send data to Flask microservice
+        const flaskResponse = await axios.post('http://127.0.0.1:5000/recommend', {
+            username: userId,
+            ratings: [],
+            preferences: booleanPreferences
+        });
+        // console.log(flaskResponse.data.recommendations);
+        const firstColumn = flaskResponse.data.recommendations.map(item => item[0]);
+
+        const results1 = await pool.query('update users set preference_list = $1 where id = $2', [firstColumn, userId]);
+        const results2 = await pool.query('update users set preference_list1 = $1 where id = $2', [booleanPreferences, userId]);
+
+        res.status(200).json(firstColumn);
+    } catch (error) {
+        console.error('Error connecting to Flask microservice:', error.message);
+        res.status(500).json({ error: 'Failed to connect to Flask microservice' });
+    }
 });
 
 router.get('/getGameInfo', async (req, res) => {

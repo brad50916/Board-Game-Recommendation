@@ -69,8 +69,11 @@ def recommend():
     }
     """
     data = request.get_json()
+    print(data)
     # Get the ratings list (each element is a (item_id, rating) tuple).
     ratings = data.get("ratings", [])
+
+
     pref_booleans  = data.get("preferences", [False] * NUM_CHECKBOXES)
     if len(pref_booleans) != NUM_CHECKBOXES:
         return jsonify({"error": f"'preferences' must have {NUM_CHECKBOXES} booleans"}), 400
