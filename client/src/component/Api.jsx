@@ -173,16 +173,9 @@ export const signup = async (payload) => {
     });
     if (response.ok) {
       const result = await response.json();
-      return { ok: true, data: result };
+      return result;
     } else {
-      let errorMessage = "Sign up failed";
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (_error) {
-        // Keep default message when response body is not JSON.
-      }
-      return { ok: false, status: response.status, message: errorMessage };
+      return null;
     }
   } catch (error) {
     throw error;
