@@ -1,18 +1,23 @@
+# Use a lightweight Python base image
 FROM python:3.10-slim
 
+# Set working directory in container
 WORKDIR /app
 
-COPY recommender/dependencies.txt .
-RUN pip install --no-cache-dir -r dependencies.txt
+# Copy requirement file and install dependencies
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-COPY recommender ./recommender
-COPY model_data ./model_data
+# Copy the application code and model file
+COPY . . 
 
+# Expose the port (if Flask runs on 5000 by default)
 EXPOSE 5000
 
-ENV FLASK_DEBUG=0
+# Define environment variable for Flask
+ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /app/recommender
-
+# Command to run the Flask app (use gunicorn for production for better performance)
+# Using Flask's built-in server for simplicity here:
 CMD ["python", "app.py"]
